@@ -5,8 +5,10 @@ import shutil
 from celery import Celery
 import os
 import datetime
-from .parcer import Parser,Audit_it,CBR,Consultant,Gaap,IIA,Minfin,RBK,SRO,ML
+from .parcer import ML, parserutils
+from .parcer.newspars import Audit_it, CBR, Gaap, IIA, Minfin, RBK, SRO, Consultant
 from .parcer.globalpars import mainparser
+from .parcer.theiia import TheIIA
 import pandas as pd
 from celery.exceptions import SoftTimeLimitExceeded,TimeLimitExceeded
 from django.core.files import File
@@ -20,14 +22,14 @@ from my_site.celery import app
 from django.core.cache import cache
 
 
-DICT_SITE_PARSER = {'consultant.ru':Consultant.Consultant()
-                    , 'gaap.ru':Gaap.Gaap()
-                    , 'rbc.ru':RBK.RBK()
-                    , 'minfin.gov.ru':Minfin.Minfin()
-                    , 'sroaas.ru':SRO.SRO()
-                    , 'iia-ru.ru':IIA.IIA()
-                    , 'cbr.ru': CBR.CBR()
-                    , 'audit-it.ru':Audit_it.Audit_it()}
+DICT_SITE_PARSER = {'consultant.ru' :   Consultant(), 
+                    'gaap.ru' :         Gaap(), 
+                    'rbc.ru' :          RBK(), 
+                    'minfin.gov.ru' :   Minfin(), 
+                    'sroaas.ru' :       SRO(), 
+                    'iia-ru.ru' :       IIA(), 
+                    'cbr.ru' :          CBR(), 
+                    'audit-it.ru' :     Audit_it()}
 def unpack_zipfile(filename, extract_dir, encoding='cp437'):
     with zipfile.ZipFile(filename) as archive:
         for entry in archive.infolist():
@@ -122,20 +124,27 @@ def parse_data(celery_task_id: str,file_word,type_word,user,date_from,date_to,si
         if site_8 != []:
         #path = 'user_{0}/result_{1}.xlsx'.format(user, datetime.now().strftime('%m_%d_%Y_%H_%M_%S'))
         # writer = pd.ExcelWriter('media/'+path, engine='xlsxwriter')
-            parser = Parser.Parser()
-            news = parser.get_news(site_8, date_from,date_to)
+            news = parserutils.get_news(site_8, date_from,date_to)
             pd.DataFrame(news).to_excel(user+''.join([str(x) for x in site_8])+str(date_from)+'.xlsx')
             print(type_word)
             if type_word == 'Ручные':
-                news = parser._check_keywords(news,words)
+                news = parserutils.check_keywords(news,words)
             elif type_word == 'Модель':
-                news = parser._check_keywords_model(news, word_model['keywords'].to_dict())
-            df = pd.DataFrame(news, columns=['Source', 'Header', 'Article', 'Url', 'Check_word'])
-            df = parser._filter_headers(df)
-            df = parser._drop_duplicates(df)
-            df.columns=['Сайт','Заголовок статьи','Текст статьи','Ссылка на статью','Ключевое слово']
-            df.to_excel(writer, sheet_name='8 Парсеров',index=False)
+                news = parserutils.check_keywords_model(news, word_model['keywords'].to_dict())
+            news = parserutils.filter_headers(news)
+            news = parserutils.drop_duplicates(news)
+            news.columns=['Сайт','Заголовок статьи','Текст статьи','Ссылка на статью','Ключевое слово']
+            news.to_excel(writer, sheet_name='8 Парсеров',index=False)
         # #
+        # TODO добавить theiia.org
+        # if <условие>
+        #     articles = TheIIA().get_articles_df(date_from=date_from, date_to=date_to)
+        #     if type_word == 'Ручные':
+        #         articles = parserutils.check_keywords(articles, news_column='Article_ru')
+        #     elif type_word == 'Модель':
+        #         articles = parserutils.check_keywords_model(articles, word_model['keywords'].to_dict(), news_column='Article_ru')
+        #     articles.columns=['Дата','Заголовок статьи','Ссылка на статью','Ссылка на PDF', 'Текст статьи', 'Перевод статьи', 'Ключевое слово']
+        #     articles.to_excel(writer, sheet_name='TheIIA',index=False)
 
         cur_parsing_res.result = path
         cur_parsing_res.result_text = 'Success'
