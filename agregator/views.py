@@ -6,7 +6,7 @@ import pandas as pd
 from my_site.celery import app
 from datetime import datetime
 from asgiref.sync import async_to_sync
-from .parcer import Parser,Audit_it
+from .parcer.newspars import parser as Parser
 from django.core.files.storage import FileSystemStorage
 from .models import Files,BaseParsingResult,BaseWord
 from rest_framework.decorators import api_view
@@ -20,7 +20,7 @@ from .task import create_task
 from celery import Celery
 
 from my_site.celery import app as celery_app
-agg_site=['site1','site2','site3','site4','site5','site6','site7','site8','site9']
+agg_site=['site1','site2','site3','site4','site5','site6','site7','site8','site9','site10']
 def get_celery_queue_len(queue_name):
     with celery_app.pool.acquire(block=True) as conn:
         return conn.default_channel.client.llen(queue_name)
@@ -54,7 +54,7 @@ def task(request):
         elif request.POST['date1'] == '' or request.POST['date2'] == '':
             messages.success(request, 'Выберите диапазон дат!')
             return render(request, 'agg/aggregator.html',{'date_from':date_from,'date_do':date_to,'sites':site_pars})
-        elif 'site1' not in request.POST and 'site2' not in request.POST and 'site3' not in request.POST and 'site4' not in request.POST and 'site5' not in request.POST and 'site6' not in request.POST and 'site7' not in request.POST and 'site8' not in request.POST and 'site9' not in request.POST:
+        elif 'site1' not in request.POST and 'site2' not in request.POST and 'site3' not in request.POST and 'site4' not in request.POST and 'site5' not in request.POST and 'site6' not in request.POST and 'site10' not in request.POST and 'site7' not in request.POST and 'site8' not in request.POST and 'site9' not in request.POST:
             messages.success(request, 'Выберите сайт для парсинга!')
             return render(request, 'agg/aggregator.html',{'date_from':date_from,'date_do':date_to,'sites':site_pars})
         else:

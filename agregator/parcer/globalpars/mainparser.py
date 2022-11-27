@@ -97,7 +97,7 @@ class MainParser:
         headers = {
             'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.111 Safari/537.36'}
         try:
-            response = cls.__session.get(q, timeout=10, headers=headers)
+            response = cls.__session.get(q, timeout=10, headers=Ya.headers,cookies=Ya.cookies)
 
         except IOError as http_err:
             print(f'Запрос "{key}" не выполнен! '
