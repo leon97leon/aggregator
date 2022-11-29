@@ -34,6 +34,6 @@ class Audit_it(Parser):
                         if date < date_from:
                             next_page = False
                             break
-            page = self._get_html_page(self.search_url.format(page_number))
             page_number += 1
+            page = self._get_html_page(self.search_url.format(page_number))
         return news_urls

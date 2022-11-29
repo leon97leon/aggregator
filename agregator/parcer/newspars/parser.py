@@ -7,6 +7,8 @@ from datetime import datetime, date
 import warnings
 warnings.filterwarnings('ignore')
 
+USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36'
+
 class Parser:
     '''Базовый класс для извлечения статей из новостных ресурсов'''
     def __init__(self, name:str, base_url: str, search_url: str = ''):
@@ -41,7 +43,7 @@ class Parser:
 
     def _get_html_page(self, url) -> requests.models.Response:
         """Функция получения html кода страницы."""
-        headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'}
+        headers = {'User-Agent': USER_AGENT}
         session = requests.Session()
         adapter = HTTPAdapter(max_retries=Retry(connect=3, backoff_factor=0.5))
         session.mount('http://', adapter)

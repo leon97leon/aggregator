@@ -17,7 +17,10 @@ class SRO(Parser):
         next_page = True
         page_number = 1
         page = self._get_html_page(self.search_url.format(page_number))
-        while page.status_code == 200 and next_page:
+        date = self._get_current_date()
+        # по какой то причине сайт стал выдавать стату 404 даже для рабочих страниц
+        # while page.status_code == 200 and next_page:
+        while date > date_from:
             soup = BeautifulSoup(page.text, "html.parser")
             news = soup.findAll('div', class_="b-news__item")
             links = [f'{self.base_url}{item.a.get("href")}' for item in news]
@@ -29,9 +32,9 @@ class SRO(Parser):
                 if self._check_news_date(date, date_from, date_to):
                     self._log_article(date, header)
                     news_urls[link] = (date.strftime('%Y-%m-%d'), header)
-                elif date < date_from:
-                    next_page = False # если новость вышла раньше, чем указанный диапазон поиска
-                    break
+                # elif date < date_from:
+                #     next_page = False # если новость вышла раньше, чем указанный диапазон поиска
+                #     break
             page_number += 1
             page = self._get_html_page(self.search_url.format(page_number))
         return news_urls

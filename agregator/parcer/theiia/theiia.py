@@ -8,19 +8,25 @@ from tqdm import tqdm
 import pandas as pd
 import re
 import fitz
-import translators as ts
 import os
+from googletrans import Translator
+t = Translator()
+
+import warnings
+warnings.filterwarnings('ignore')
 
 PATTERN_DATE = r'^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)((.?){6})\ ((([0-9])|([0-2][0-9])|([3][0-1])),\ \d{4})|(T\+[0-9]+)$'
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36"
+TRANS_LIM = 5000    # Bytes limit for text lenght to pass to Google Translator
+EXCEL_LIM = 32000   # Bytes limit for text lenght to save in a single cell of Excell
 
 class TheIIA:
     """Сlass for parsing articles from  https://www.theiia.org"""
 
     def __init__(self, saved_articles_path:str=''):
-        dir = os.path.dirname(__file__)
-        if not os.path.exists(f'{dir}/data'):
-            os.makedirs(f'{dir}/data')
+        self.data_dir = f'{os.path.dirname(__file__)}/data'
+        if not os.path.exists(self.data_dir):
+            os.makedirs(self.data_dir)
             
         self.name = 'TheIIA'
         self.base_url = 'https://www.theiia.org'
@@ -38,11 +44,10 @@ class TheIIA:
         try:
             self.saved_articles = pd.read_csv(self.saved_articles_path, sep=';', 
                                               parse_dates=['Date'])
-            self.saved_articles.columns = ['Date', 'Header', 'URL', 'PDF_URL', 'Article']
-            self.saved_urls = dict(zip(self.saved_articles['URL'], 
-                                       self.saved_articles['Header']))
+            self.saved_articles.columns = ['Date', 'Header_ru', 'Article_ru', 'Header', 'Article', 'URL']
+            self.saved_urls = dict(zip(self.saved_articles['URL'], self.saved_articles['Header']))
         except:
-            self.saved_articles = pd.DataFrame(columns=['Date', 'Header', 'URL', 'PDF_URL', 'Article'])
+            self.saved_articles = pd.DataFrame(columns=['Date', 'Header_ru', 'Article_ru', 'Header', 'Article', 'URL'])
             self.saved_urls = dict()
     
     def __repr__(self):
@@ -100,12 +105,12 @@ class TheIIA:
         
         Returns pd.DataFrame with columns
         ```
-        | Date | Header | URL | PDF_URL | Article | Article_ru |
+        | Date | Header_ru | Article_ru | Header | Article | URL |
         ```
         """
         date_from, date_to = self._set_search_dates(date_from, date_to)
         
-        urls = self.saved_urls
+        urls = self.saved_urls.copy()
         if 'search' in from_:
             urls = self.get_urls_from_search(add_urls_to=urls)
         if 'recent' in from_:
@@ -118,7 +123,11 @@ class TheIIA:
                 if pdf_url:
                     article = article +' \nТЕКСТ PDF\n '+ self._get_pdf_text(pdf_url)
                 article = re.sub(r"[\r\n]{2,}", '\r\n', article, flags=re.I or re.M)
-                new_articles.append([date, header, url, pdf_url, article.strip()])
+                
+                header_ru = t.translate(header, dest='ru').text
+                article_parts = self.get_article_translation(article.strip())
+                for (orig_part, trans_part) in article_parts:
+                    new_articles.append([date, header_ru, trans_part, header, orig_part, url])
         print('    new articles: %i' % len(new_articles))
         print('Filtering by date')
         new_articles = pd.DataFrame(new_articles, 
@@ -131,14 +140,8 @@ class TheIIA:
         if update_saved:
             self.saved_articles.to_csv(self.saved_articles_path, sep=';', 
                                        date_format='%Y-%m-%d', index=False)
-            
-        articles = self.saved_articles.query("@date_from <= Date <= @date_to").copy()
-        tqdm.pandas()
-        print('Translating')
-        articles['Article_ru'] = articles['Article'].progress_apply(
-            lambda x: ts.google(x, to_language='ru', if_ignore_limit_of_length=True))                                           
-
-        return articles
+         
+        return self.saved_articles.query("@date_from <= Date <= @date_to").copy()
     
     
     def get_recent_urls(self, add_urls_to:dict=dict()) -> dict:
@@ -164,10 +167,9 @@ class TheIIA:
                 if not link in article_urls:
                     articles_count += 1 
                     header = awrap.find('div', class_='res-article-sub-title').text.strip()
-                    header_ru = ts.google(header, to_language='ru')
-                    article_urls[link] = f'{header}\n{header_ru}'
+                    article_urls[link] = header
                     print("    articles found: %i" % articles_count, end='\r')
-        # Последние публикации с internalauditor.theiia.org              
+        # Recent articles from internalauditor.theiia.org              
         for s in self.sections:
             page = self._get_html_page(f'{self.magazine_url}/en/{s}')
             soup = BeautifulSoup(page.text, "html.parser")
@@ -178,9 +180,7 @@ class TheIIA:
                 if link[:4] != 'http':
                     link = f"{self.magazine_url}{link}"
                 if not link in article_urls:
-                    header = link_elem.text.strip()
-                    header_ru = ts.google(header, to_language='ru')
-                    article_urls[link] = f'{header}\n{header_ru}'
+                    article_urls[link] = link_elem.text.strip()
                     articles_count += 1
                 print("    articles found: %i" % articles_count, end='\r')
         print("    articles found: %i" % articles_count)
@@ -215,14 +215,12 @@ class TheIIA:
                 link_elem = article_elem.find('a', class_='btn-secondary')
                 link = link_elem.get('href').split('?')[0]
                 if not link in article_urls:
-                    header = link_elem.text.strip()
-                    header_ru = ts.google(header, to_language='ru')
-                    article_urls[link] = f'{header}\n{header_ru}'
+                    article_urls[link] = link_elem.text.strip()
                     articles_count += 1
-                print("    page: %i, articles found: %i" % (page_number, articles_count), end='\r')      
+                print("    page: %i, articles found: %i" % (page_number-1, articles_count), end='\r')      
             page = self._get_html_page(search_url.format(page_number))
             page_number += 1
-        print("    pages: %i, articles found: %i" % (page_number, articles_count))  
+        print("    pages: %i, articles found: %i" % (page_number-2, articles_count))  
             
         return article_urls
     
@@ -245,9 +243,9 @@ class TheIIA:
         """Returns text of pdf from its url"""
         
         response = requests.get(url, headers={'user_agent': f'{USER_AGENT}'})
-        with open("data/"+url.split('/')[-1], 'wb') as f:
+        with open(os.path.join(self.data_dir,url.split('/')[-1]), 'wb') as f:
             f.write(response.content)
-        with fitz.open("data/"+url.split('/')[-1]) as doc:
+        with fitz.open(os.path.join(self.data_dir,url.split('/')[-1])) as doc:
             pdf_text = ""
             for page in doc:
                 pdf_text += page.get_text()
@@ -256,7 +254,7 @@ class TheIIA:
         return pdf_text
     
     def _set_search_dates(self, date_from:str=None, date_to:str=None, fmt:str='%d.%m.%Y'):
-        """Функция для установки временного интервала поиска статей."""
+        """Function for setting the time interval for searching articles."""
         if date_from is None:
             date_from = self._get_current_date()
         else:
@@ -281,3 +279,43 @@ class TheIIA:
             fmt_date = None
         return fmt_date
     
+    @staticmethod
+    def get_article_translation(txt:str, excel_lim:int=EXCEL_LIM, trans_lim:int=TRANS_LIM):
+        '''Function to get the translation of an text `txt` divided into parts not exceeding EXCEL_LIM characters'''
+        
+        if txt == '':
+            return [('','')]
+        text = txt + '\r\n'
+        parts = list()
+        original = ''
+        translated = ''
+        right = 0
+        while right < len(text):
+            left = right
+            
+            end_pos = -1
+            for splitter in ['\r\n', '. ', ' ']:
+                end_pos = text[right:right+trans_lim].rfind(splitter)
+                if end_pos != -1:
+                    end_pos += len(splitter)
+                    break
+            if end_pos == -1:
+                end_pos = trans_lim - 1
+            
+            right += end_pos
+            orig_chunk = text[left:right]
+            try:
+                tran_chunk = t.translate(orig_chunk, dest='ru').text
+                
+                if (len(original) + len(orig_chunk) > excel_lim or 
+                    len(translated) + len(tran_chunk) > excel_lim ):
+                    parts.append((original, translated))
+                    original = orig_chunk
+                    translated = tran_chunk
+                else:
+                    original += orig_chunk
+                    translated += tran_chunk
+            except:
+                tran_chunk = ''
+        parts.append((original, translated))
+        return(parts)

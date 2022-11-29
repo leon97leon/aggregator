@@ -68,7 +68,8 @@ def check_keywords(news: pd.DataFrame, words: List[str] = None,
             return None
     tqdm.pandas()    
     check_words = news[[news_column,'Header']].progress_apply(check_article,axis=1)
-    filtered_news = news[check_words.notna()]
+    filtered_urls = news[check_words.notna()]['URL']
+    filtered_news = news[news['URL'].isin(filtered_urls)]
     filtered_news['Check_word'] = check_words[check_words.notna()]
     return filtered_news
 
@@ -99,7 +100,8 @@ def check_keywords_model(news: List[List[str]], words = None,
             return None
     tqdm.pandas()    
     check_words = news[[news_column,'Header']].progress_apply(check_article,axis=1)
-    filtered_news = news[check_words.notna()]
+    filtered_urls = news[check_words.notna()]['URL']
+    filtered_news = news[news['URL'].isin(filtered_urls)]
     filtered_news['Check_word'] = check_words[check_words.notna()]
     return filtered_news
 

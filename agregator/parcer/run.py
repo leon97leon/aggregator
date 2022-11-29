@@ -5,6 +5,8 @@ import parserutils as p
 import warnings
 import pandas as pd
 warnings.filterwarnings('ignore')
+date_from = '17.11.2022'
+date_to = '27.11.2022'
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -16,17 +18,18 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     if args.resource == 'news':
-        if args.date_from is not None and args.date_to is not None:
-            news = p.get_news([Gaap(), Audit_it(), Minfin(), RBK(), SRO(), IIA(), Consultant(), CBR()], args.date_from, args.date_to)
+        if date_from is not None and date_to is not None:
+            # news = p.get_news([Gaap(), Audit_it(), Minfin(), RBK(), SRO(), IIA(), Consultant(), CBR()], args.date_from, args.date_to)
+            news = p.get_news([SRO()], date_from, date_to)
         else:
             news = p.get_news([Gaap(), Audit_it(), Minfin(), RBK(), SRO(), IIA(), Consultant(), CBR()])
         news.to_csv('log_links.csv', sep=';', encoding='utf-8', index=False)
+        news = p.filter_headers(news)
+        news = p.drop_duplicates(news)
         if args.keywords_type == 'a':
             news = p.check_keywords(news, news_column='Article')
         else:
             news = p.check_keywords_model(news, args.keywords_filepath, news_column='Article')
-        news = p.filter_headers(news)
-        news = p.drop_duplicates(news)
         news.to_csv('news_result.csv', sep=';', index=False, encoding='utf-8')
     
     elif args.resource == 'theiia':
