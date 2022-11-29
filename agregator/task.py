@@ -130,12 +130,12 @@ def parse_data(celery_task_id: str,file_word,type_word,user,date_from,date_to,si
             news = parserutils.get_news(site_8, date_from,date_to)
             pd.DataFrame(news).to_excel(user+''.join([str(x) for x in site_8])+str(date_from)+'.xlsx')
             print(type_word)
+            news = parserutils.filter_headers(news)
+            news = parserutils.drop_duplicates(news)
             if type_word == 'Ручные':
                 news = parserutils.check_keywords(news,words)
             elif type_word == 'Модель':
                 news = parserutils.check_keywords_model(news, word_model['keywords'].to_dict())
-            news = parserutils.filter_headers(news)
-            news = parserutils.drop_duplicates(news)
             news.columns=['Сайт','Дата новости','Заголовок статьи','Текст статьи','Ссылка на статью','Ключевое слово']
             news.to_excel(writer, sheet_name='8 Парсеров',index=False)
         # #
@@ -148,7 +148,7 @@ def parse_data(celery_task_id: str,file_word,type_word,user,date_from,date_to,si
                 articles = parserutils.check_keywords(articles, news_column='Article_ru')
             elif type_word == 'Модель':
                 articles = parserutils.check_keywords_model(articles, word_model['keywords'].to_dict(), news_column='Article_ru')
-            articles.columns=['Дата','Заголовок перевод', 'Текст перевода статьи', 'Заголовок оригинал', 'Текст оригинала статьи', 'Ссылка на статью', 'Ключевое слово']
+            articles.columns=['Дата', 'Заголовок перевод', 'Текст перевода статьи', 'Заголовок оригинал', 'Текст оригинала статьи', 'Ссылка на статью', 'Ключевое слово']
             articles.to_excel(writer, sheet_name='TheIIA',index=False)
 
         cur_parsing_res.result = path
