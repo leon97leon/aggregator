@@ -61,9 +61,9 @@ def check_keywords(news: pd.DataFrame, words: List[str] = None,
             lemm_news = lemmatize(x[news_column] + x['Header'])
             lemm_sep_news = lemmatize_sep(x[news_column] + x['Header'])
             if any(word in lemm_sep_news for word in lemm_one_words):
-                return next(word for word in lemm_one_words if word in lemm_sep_news)
+                return ', '.join([word for word in lemm_one_words if word in lemm_sep_news])
             elif any(word in lemm_news for word in lemm_two_plus_words):
-                return next(word for word in lemm_two_plus_words if word in lemm_news)
+                return ', '.join([word for word in lemm_two_plus_words if word in lemm_news])
         except:
             return None
     tqdm.pandas()    
@@ -132,6 +132,8 @@ def filter_headers(news: pd.DataFrame) -> pd.DataFrame:
 
 def drop_duplicates(news: pd.DataFrame) -> pd.DataFrame:
     """Функция удаления дубликатов новостей."""
+
+    #news=news.groupby(['Source', 'Date', 'Header', 'Article', 'URL']).agg({'Check_word': lambda x: ', '.join(x)}).reset_index()
     news.drop_duplicates(subset=['Header'], inplace=True)
     return news
 

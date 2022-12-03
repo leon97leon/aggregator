@@ -30,7 +30,7 @@ class MainParser:
         cls.__session = Utils.create_session()
         cls.__keys = Utils.read_keys(keys_df)
         dates_list = Utils.get_list_of_dates(first_date, second_date)
-
+        print(1)
         MainParser.get_articles(dates_list)
 
         cls.__df.drop_duplicates(['Ссылка'], inplace=True, ignore_index=True)
