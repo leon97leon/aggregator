@@ -5,7 +5,7 @@ class SRO(Parser):
 
     def __init__(self):
         super().__init__('SRO', 'https://sroaas.ru',
-                         'https://sroaas.ru/pc/novosti/&PAGEN_1={}')
+                         'https://sroaas.ru/pc/novosti/?PAGEN_1={}')
 
     def get_article(self, url: str):
         attrs = {'class' : 'b-news-detail ph-block'}
@@ -26,7 +26,7 @@ class SRO(Parser):
             links = [f'{self.base_url}{item.a.get("href")}' for item in news]
             dates = [item.div.text.strip() for item in news]
             dates = [' '.join(d.split()[-4:]) for d in dates]
-            headers = [item.p.text.strip() for item in news]
+            headers = [item.a.text.strip() for item in news]
             for d, link, header in zip(dates, links, headers):
                 date = self._format_date(d, '%d.%m.%Y %H:%M')
                 if self._check_news_date(date, date_from, date_to):

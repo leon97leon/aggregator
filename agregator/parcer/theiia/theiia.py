@@ -38,17 +38,18 @@ class TheIIA:
         self.magazine_url = 'https://internalauditor.theiia.org'
         self.sections = ['audit-practice', 'governance', 'leadership', 'risk', 'technology']
         if not saved_articles_path:
-            self.saved_articles_path = os.path.normpath(f'{dir}/TheIIA.csv')
+            self.saved_articles_path = os.path.normpath(f'{os.path.dirname(__file__)}/TheIIA.csv')
+            print(self.saved_articles_path)
         else:
             self.saved_articles_path = saved_articles_path    
         try:
-            self.saved_articles = pd.read_csv(self.saved_articles_path, sep=';', 
-                                              parse_dates=['Date'])
+            self.saved_articles = pd.read_csv(self.saved_articles_path, sep=';', parse_dates=['Date'])
             self.saved_articles.columns = ['Date', 'Header_ru', 'Article_ru', 'Header', 'Article', 'URL']
             self.saved_urls = dict(zip(self.saved_articles['URL'], self.saved_articles['Header']))
         except:
             self.saved_articles = pd.DataFrame(columns=['Date', 'Header_ru', 'Article_ru', 'Header', 'Article', 'URL'])
             self.saved_urls = dict()
+        print('Saved urls count:', len(self.saved_urls))
     
     def __repr__(self):
         return f"{self.name} {self.base_url.split('//')[1].replace('www.','')}"
@@ -138,10 +139,13 @@ class TheIIA:
         ).sort_values(by='Date', ascending=False).reset_index(drop=True)
         
         if update_saved:
+            self.saved_articles['Date'] = pd.to_datetime(self.saved_articles['Date'])
             self.saved_articles.to_csv(self.saved_articles_path, sep=';', 
                                        date_format='%Y-%m-%d', index=False)
-         
-        return self.saved_articles.query("@date_from <= Date <= @date_to").copy()
+        
+        result = self.saved_articles.query("@date_from <= Date <= @date_to").copy() 
+        result['Date'] = result['Date'].dt.strftime('%Y-%m-%d')
+        return result
     
     
     def get_recent_urls(self, add_urls_to:dict=dict()) -> dict:
